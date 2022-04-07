@@ -59,6 +59,9 @@ function buildmodel(input)
             Reservoar[1] == Reservoar[length(HOUR)]
         Gas_emissions[r in REGION],
             Emissions[r] == sum(Electricity[r, :Gas, h] for h in HOUR) * ef_gas
+        #Start of exercise 2
+        Joint_Emissions,
+            sum(Emissions[r] for r in REGION) <= (154777+112687+26974681)*0.1
 
     end #constraints
 
@@ -101,25 +104,21 @@ function runmodel()
     println(Capacity_result)
     println(emissions_result, " ton CO2")
 
-#    for r in REGION
-#        y = sum(Capacity[p ,r] for p in PLANT)
-#        x = HOUR[1,length(HOUR)]
-#        plot(x,y)
-#    end
-# start of plot for exercise 1
 
-    x = 147:160#651
-    y_w = value.(Electricity[:DE, :Wind, x])
+    x = value.(147:651)
+    y_w = zeros(length(x))
     y_pv = zeros(length(x))
     y_gas = zeros(length(x))
     for z in 1:length(x)
         y_pv[z] = value.(Electricity[:DE, :Wind, z]) + value.(Electricity[:DE, :PV, z])
         y_gas[z] = y_pv[z] + value.(Electricity[:DE, :Gas, z])
+        y_w[z] = value.(Electricity[:DE, :Wind, z])
     end
 
-    plot(x,y_gas)
-    plot(x,y_pv)
-    plot(x,y_w)
+    #plot(x,y_gas)
+    #plot(x,y_pv)
+    #plot(x,y_w)
+    #savefig("C:\\exercise1.png")
     nothing
 
 end #runmodel
