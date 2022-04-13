@@ -128,6 +128,7 @@ function runmodel()
         y_battery[z] = y_gas[z] + value.(Electricity[:DE, :Battery, z])
     end
 
+
     display(plot(x, [y_battery, y_gas, y_pv, y_w], label=["gas, sol, vind och batteri" "gas, sol och vind" "sol och vind"  "vind"]))
     savefig("Exercise2_tot.pdf")
 
