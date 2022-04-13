@@ -26,6 +26,8 @@ function buildmodel(input)
         Systemcost[r in REGION]                               >= 0        # Euro
         Emissions[r in REGION]                                >= 0        # Ton CO2
         Battery_Storage[r in REGION, h in HOUR]               >= 0        # MWh
+        Transmission[r1 in REGION, r2 in REGION, h in HOUR]   >= 0        # MWh
+        Capacity_T[r1 in REGION, r2 in REGION]                >= 0        # MW
 
     end #variables
 
@@ -49,7 +51,7 @@ function buildmodel(input)
         Generation_wind[r in REGION, h in HOUR],
             Electricity[r, :Wind, h] <= Capacity[r, :Wind] * wind_cf[r, h]
         Demand[r in REGION, h in HOUR],
-            sum(Electricity[r, p, h] for p in PLANT) >= load[r,h]
+            sum(Electricity[r, p, h] for p in PLANT) - sum(Transmission[r, r2, h] for r2 in REGION) * 0.98 >= load[r,h]
         SystemCost[r in REGION],
             Systemcost[r] >= sum(Capacity[r, p]*annualcost[p] for p in PLANT) + sum(Electricity[r, p, h] * (runcost[p] + fucost[p]) for p in PLANT, h in HOUR) # sum of all annualized costs
         Reserv1[h in 2:length(HOUR)],
@@ -69,10 +71,21 @@ function buildmodel(input)
             Battery_Storage[r, h] <= Capacity[r, :Battery]
         Generation_battery[r in REGION, h in HOUR],
             Electricity[r, :Battery, h] <= Battery_Storage[r, h] * 0.9
-        Battery_change[r in REGION, h in 2:length(HOUR)],
-            Battery_Storage[r, h] == Battery_Storage[r, h-1] - Electricity[r, :Battery, h]/0.9 + sum(Electricity[r, p, h] for p in PLANT) - load[r, h]
+        Battery_change[r in REGION, r2 in REGION, h in 2:length(HOUR)],
+            Battery_Storage[r, h] == Battery_Storage[r, h-1] - Electricity[r, :Battery, h]/0.9 + sum(Electricity[r, p, h] for p in PLANT) - load[r, h] - Transmission[r, r2, h]
         Batteries2[r in REGION],
             Battery_Storage[r,1] == Battery_Storage[r,length(HOUR)]
+        # Start of exercise 3
+        Transmission_in[h in HOUR, r in REGION],
+            Electricity[r, :Transmission, h] == sum(Transmission[r2, r, h] for r2 in REGION) * 0.98
+        Transmission_Capa[r in REGION],
+            Capacity[r, :Transmission] == sum(Capacity_T[r2,r] for r2 in REGION)
+        Transmission_Cap[r1 in REGION, r2 in REGION, h in HOUR],
+            Transmission[r1,r2,h] <= Capacity_T[r1,r2]
+        Transmission_equal[r1 in REGION, r2 in REGION],
+            Capacity_T[r1,r2] == Capacity_T[r2,r1]
+        Transmission_same[r in REGION],
+            Capacity_T[r,r] == 0
 
     end #constraints
 
@@ -81,7 +94,7 @@ function buildmodel(input)
         sum(Systemcost[r] for r in REGION)
     end # objective
 
-    return (;m, Capacity, Emissions, Electricity, HOUR)
+    return (;m, Capacity, Emissions, Electricity, HOUR, Capacity_T)
 
 end # buildmodel
 
@@ -91,7 +104,7 @@ function runmodel()
 
     model = buildmodel(input)
 
-    @unpack m, Capacity, Emissions, Electricity, HOUR = model
+    @unpack m, Capacity, Emissions, Electricity, HOUR, Capacity_T = model
 
     println("\nSolving model...")
 
@@ -110,10 +123,12 @@ function runmodel()
     Capacity_result = value.(Capacity)
     emissions_result = value.(Emissions)
     el=value.(Electricity)
+    capacity_t = value.(Capacity_T)
 
     println("Cost (M€): ", Cost_result)
     println(Capacity_result)
     println(emissions_result, " ton CO2")
+    println(capacity_t)
 
 
     x = value.(147:651)
@@ -121,48 +136,52 @@ function runmodel()
     y_pv = zeros(length(x))
     y_gas = zeros(length(x))
     y_battery = zeros(length(x))
+    y_transmission = zeros(length(x))
     for z in 1:length(x)
         y_w[z] = value.(Electricity[:DE, :Wind, z])
         y_pv[z] = y_w[z] + value.(Electricity[:DE, :PV, z])
         y_gas[z] = y_pv[z] + value.(Electricity[:DE, :Gas, z])
         y_battery[z] = y_gas[z] + value.(Electricity[:DE, :Battery, z])
+        y_transmission = y_battery[z] + value.(Electricity[:DE, :Transmission, z])
     end
 
 
-    display(plot(x, [y_battery, y_gas, y_pv, y_w], label=["gas, sol, vind och batteri" "gas, sol och vind" "sol och vind"  "vind"]))
-    savefig("Exercise2_tot.pdf")
+    display(plot(x, [y_battery, y_gas, y_pv, y_w], label=["gas, sol, vind, batteri och transmission" "gas, sol, vind och batteri" "gas, sol och vind" "sol och vind"  "vind"]))
+    #savefig("Exercise2_tot.pdf")
 
     wind = [value.(Capacity[:DE,:Wind]), value.(Capacity[:SE,:Wind]), value.(Capacity[:DK,:Wind])]
     pv = [value.(Capacity[:DE,:PV]),value.(Capacity[:SE,:PV]),value.(Capacity[:DK,:PV])]
     gas = [value.(Capacity[:DE,:Gas]), value.(Capacity[:SE,:Gas]), value.(Capacity[:DK,:Gas])]
     hydro = [value.(Capacity[:DE,:Hydro]), value.(Capacity[:SE,:Hydro]), value.(Capacity[:DK,:Hydro])]
     battery = [value.(Capacity[:DE,:Battery]), value.(Capacity[:SE,:Battery]), value.(Capacity[:DK,:Battery])]
+    transmission = [value.(Capacity[:DE,:Transmission]), value.(Capacity[:SE,:Transmission]), value.(Capacity[:DK,:Transmission])]
 
     ticklabel = ["DE" "SE" "DK"]
     display(
-    groupedbar([wind pv gas hydro battery],
+    groupedbar([wind pv gas hydro battery transmission],
     bar_position = :stack,
     bar_width=0.7,
     xticks=(1:3, ticklabel),
-    label=["Wind" "PV" "Gas" "Hydro" "Battery"])
+    label=["Wind" "PV" "Gas" "Hydro" "Battery" "Transmission"])
     )
-    savefig("Exercise2_totcap.pdf")
+    #savefig("Exercise2_totcap.pdf")
 
     wind = [value.(sum(Electricity[:DE,:Wind, h] for h in HOUR)), value.(sum(Electricity[:SE,:Wind, h] for h in HOUR)), value.(sum(Electricity[:DK,:Wind, h] for h in HOUR))]
     pv = [value.(sum(Electricity[:DE,:PV, h] for h in HOUR)),value.(sum(Electricity[:SE,:PV, h] for h in HOUR)),value.(sum(Electricity[:DK,:PV, h] for h in HOUR))]
     gas = [value.(sum(Electricity[:DE,:Gas, h] for h in HOUR)), value.(sum(Electricity[:SE,:Gas, h] for h in HOUR)), value.(sum(Electricity[:DK,:Gas, h] for h in HOUR))]
     hydro = [value.(sum(Electricity[:DE,:Hydro, h] for h in HOUR)), value.(sum(Electricity[:SE,:Hydro, h] for h in HOUR)), value.(sum(Electricity[:DK,:Hydro, h] for h in HOUR))]
     battery = [value.(sum(Electricity[:DE,:Battery, h] for h in HOUR)), value.(sum(Electricity[:SE,:Battery, h] for h in HOUR)), value.(sum(Electricity[:DK,:Battery, h] for h in HOUR))]
+    transmission = [value.(sum(Electricity[:DE,:Transmission, h] for h in HOUR)), value.(sum(Electricity[:SE,:Transmission, h] for h in HOUR)), value.(sum(Electricity[:DK,:Transmission, h] for h in HOUR))]
 
     ticklabel = ["DE" "SE" "DK"]
     display(
-    groupedbar([wind pv gas hydro battery],
+    groupedbar([wind pv gas hydro battery transmission],
     bar_position = :stack,
     bar_width=0.7,
     xticks=(1:3, ticklabel),
-    label=["Wind" "PV" "Gas" "Hydro" "Battery"])
+    label=["Wind" "PV" "Gas" "Hydro" "Battery" "Transmission"])
     )
-    savefig("Exercise2_totele.pdf")
+    #savefig("Exercise2_totele.pdf")
 
     nothing
 
