@@ -9,7 +9,7 @@ folder = dirname(@__FILE__)
 
 #Sets
 REGION = [:DE, :SE, :DK]
-PLANT = [:Hydro, :Gas, :PV, :Wind, :Battery, :Transmission] # Add all plants
+PLANT = [:Hydro, :Gas, :PV, :Wind, :Battery, :Transmission, :Nuclear] # Add all plants
 HOUR = 1:8760
 
 #Parameters
@@ -38,6 +38,7 @@ maxcaptable = [                                                             # GW
         :Wind        180            280             90
         :Battery     1000000        1000000         1000000
         :Transmission 1000000       1000000         1000000
+        :Nuclear     1000000       1000000         1000000
         ]
 
 maxcap = AxisArray(maxcaptable[:,2:end]'.*1000, REGION, PLANT) # MW
@@ -50,6 +51,7 @@ investmentcost = [              #euro/KW
         :Wind           1100
         :Battery        150
         :Transmission   2500/2
+        :Nuclear        7700
         ]
 invcost = AxisArray(vec(investmentcost[:,2]'.*1000), PLANT) #euro/MW
 
@@ -61,6 +63,7 @@ runningcost = [                 #euro/MWh
         :Wind           0.1
         :Battery        0.1
         :Transmission   0
+        :Nuclear        4
         ]
 runcost = AxisArray(vec(runningcost[:,2]), PLANT) #euro/MWh
 
@@ -71,6 +74,7 @@ fuelcost = [                     #euro/MWh_el
         :Wind           0
         :Battery        0
         :Transmission   0
+        :Nuclear        3.2/0.4
         ]
 fucost = AxisArray(vec(fuelcost[:,2]), PLANT) #euro/MWh_el
 
@@ -81,6 +85,7 @@ lifetime = [
         :Wind           25
         :Battery        10
         :Transmission   50
+        :Nuclear        50
         ]
 
 lt = AxisArray(vec(lifetime[:,2]), PLANT) #years
@@ -92,6 +97,7 @@ efficiency =  [
         :Wind           1
         :Battery        0.9
         :Transmission   0.98
+        :Nuclear        0.4
         ]
 eff = AxisArray(vec(efficiency[:,2]), PLANT) #MWh/MWh
 
