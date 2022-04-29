@@ -155,8 +155,8 @@ function runmodel()
     end
 
 
-    display(plot(x, [y_nuclear, y_transmission, y_gas, y_pv, y_w, y_load], label=["gas, sol, vind, batteri, transmission och kärnkraft" "gas, sol, vind, batteri och transmission" "gas, sol, vind och batteri" "gas, sol och vind" "sol och vind"  "vind" "load"]))
-    savefig("Exercise4_tot.pdf")
+    display(plot(x, [y_nuclear, y_transmission, y_battery, y_gas, y_pv, y_w, y_load], label=["gas, sol, vind, batteri, transmission och kärnkraft" "gas, sol, vind, batteri och transmission" "gas, sol, vind och batteri" "gas, sol och vind" "sol och vind" "vind" "load"]))
+#    savefig("Exercise3_tot.pdf")
 
     wind = [value.(Capacity[:DE,:Wind]), value.(Capacity[:SE,:Wind]), value.(Capacity[:DK,:Wind])]
     pv = [value.(Capacity[:DE,:PV]),value.(Capacity[:SE,:PV]),value.(Capacity[:DK,:PV])]
@@ -174,7 +174,7 @@ function runmodel()
     xticks=(1:3, ticklabel),
     label=["Wind" "PV" "Gas" "Hydro" "Battery" "Transmission" "Nuclear"])
     )
-    savefig("Exercise4_totcap.pdf")
+#    savefig("Exercise4_totcap.pdf")
 
     wind = [value.(sum(Electricity[:DE,:Wind, h] for h in HOUR)), value.(sum(Electricity[:SE,:Wind, h] for h in HOUR)), value.(sum(Electricity[:DK,:Wind, h] for h in HOUR))]
     pv = [value.(sum(Electricity[:DE,:PV, h] for h in HOUR)),value.(sum(Electricity[:SE,:PV, h] for h in HOUR)),value.(sum(Electricity[:DK,:PV, h] for h in HOUR))]
@@ -192,7 +192,7 @@ function runmodel()
     xticks=(1:3, ticklabel),
     label=["Wind" "PV" "Gas" "Hydro" "Battery" "Transmission" "Nuclear"])
     )
-    savefig("Exercise4_totele.pdf")
+#    savefig("Exercise4_totele.pdf")
 
     nothing
 
